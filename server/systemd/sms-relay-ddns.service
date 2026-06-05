@@ -1,0 +1,9 @@
+[Unit]
+Description=Update Cloudflare DDNS for SMS Relay
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/geforceiridium/sms-relay/server
+ExecStart=/home/geforceiridium/sms-relay/server/scripts/cloudflare-ddns.sh

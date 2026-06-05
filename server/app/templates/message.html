@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Message {{ message.id }} - SMS Relay</title>
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <h1>Message {{ message.id }}</h1>
+        <a href="/">Back</a>
+      </header>
+
+      <dl class="detail">
+        <dt>Sender</dt>
+        <dd>{{ message.sender }}</dd>
+        <dt>Client</dt>
+        <dd>{{ message.client_id }}</dd>
+        <dt>Client message ID</dt>
+        <dd>{{ message.client_message_id }}</dd>
+        <dt>Received at phone</dt>
+        <dd>{{ message.received_at_phone }}</dd>
+        <dt>Received at server time</dt>
+        <dd>{{ message.received_at_server|server_time }}</dd>
+        <dt>SIM slot</dt>
+        <dd>{{ message.sim_slot if message.sim_slot is not none else "Unknown" }}</dd>
+      </dl>
+
+      <article class="message-body">{{ message.body }}</article>
+    </main>
+  </body>
+</html>

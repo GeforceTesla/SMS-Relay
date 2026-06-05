@@ -1,0 +1,16 @@
+[Unit]
+Description=SMS Relay Docker Compose Stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/geforceiridium/sms-relay/server
+ExecStart=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --remove-orphans
+ExecStop=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.https.yml down
+RemainAfterExit=yes
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

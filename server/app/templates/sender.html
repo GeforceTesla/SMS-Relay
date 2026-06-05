@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ sender }} - SMS Relay</title>
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="thread-pane" aria-label="Conversations">
+        <header class="pane-header">
+          <h1>Messages</h1>
+          <p>{{ threads|length }} sender threads</p>
+        </header>
+
+        <nav class="thread-list">
+          {% for thread in threads %}
+            {% set row_token = thread.sender|sender_token %}
+            <a class="thread-row{% if row_token == token %} active{% endif %}" href="/senders/{{ row_token }}" data-delete-url="/senders/{{ row_token }}/delete" data-sender="{{ thread.sender }}">
+              <span class="avatar">{{ thread.sender[-2:] }}</span>
+              <span class="thread-main">
+                <span class="thread-top">
+                  <strong>{{ thread.sender }}</strong>
+                  <time>{{ thread.received_at_server|server_time }}</time>
+                </span>
+                <span class="thread-preview">{{ thread.body|compact_message }}</span>
+                <span class="thread-meta">Receiver {{ thread.client_id }} · {{ thread.message_count }} messages</span>
+              </span>
+            </a>
+          {% endfor %}
+        </nav>
+      </aside>
+
+      <section class="conversation-pane" aria-label="Conversation with {{ sender }}">
+        <header class="conversation-header">
+          <a class="back-link" href="/">Back</a>
+          <div class="conversation-title">
+            <span class="avatar large">{{ sender[-2:] }}</span>
+            <div>
+              <h2>{{ sender }}</h2>
+              <p>{{ messages|length }} messages · newest first</p>
+            </div>
+          </div>
+        </header>
+
+        <section class="chat-history">
+          {% for message in messages %}
+            <article class="message-bubble">
+              <p>{{ message.body }}</p>
+              <footer>
+                <time>{{ message.received_at_server|server_time }}</time>
+                <span>Receiver {{ message.client_id }}</span>
+                <a href="/messages/{{ message.id }}">Details</a>
+              </footer>
+            </article>
+          {% endfor %}
+        </section>
+      </section>
+    </main>
+    <div class="context-menu" id="thread-context-menu" role="menu" hidden>
+      <button class="context-menu-delete" type="button" role="menuitem">Delete chain</button>
+    </div>
+    <script src="/static/thread-actions.js" defer></script>
+    <script src="/static/auto-refresh.js" defer></script>
+  </body>
+</html>

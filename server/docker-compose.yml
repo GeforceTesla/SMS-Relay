@@ -1,0 +1,45 @@
+services:
+  sms-receiver:
+    build: .
+    user: "${SMS_RELAY_UID:-1000}:${SMS_RELAY_GID:-1000}"
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./data:/app/data
+      - ./keys:/app/keys:ro
+      - ./config.toml:/app/config.toml:ro
+    command: ["uvicorn", "app.main:public_app", "--host", "0.0.0.0", "--port", "8000"]
+    networks:
+      - sms_net
+    ports:
+      - "8000:8000"
+
+  sms-web:
+    build: .
+    user: "${SMS_RELAY_UID:-1000}:${SMS_RELAY_GID:-1000}"
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./data:/app/data
+      - ./config.toml:/app/config.toml:ro
+    command: ["uvicorn", "app.main:private_app", "--host", "0.0.0.0", "--port", "8001"]
+    networks:
+      - sms_net
+    ports:
+      - "8001:8001"
+
+networks:
+  sms_net:
+    driver: bridge

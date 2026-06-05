@@ -1,0 +1,18 @@
+# Copy to Caddyfile and replace the domain before deployment.
+# This proxy exposes only the SMS receiver endpoint over HTTPS.
+
+sms.example.com {
+  encode zstd gzip
+
+  request_body {
+    max_size 128KB
+  }
+
+  @receiver path /api/v1/sms
+  reverse_proxy @receiver sms-receiver:8000
+
+  @health path /healthz
+  reverse_proxy @health sms-receiver:8000
+
+  respond 404
+}

@@ -1,0 +1,6 @@
+[server]
+bearer_token = "replace-with-a-long-random-token"
+db_path = "./data/sms.db"
+private_key_path = "./keys/server_private.pem"
+max_body_bytes = 65536
+allowed_client_ids = ["Main", "Secondary"]

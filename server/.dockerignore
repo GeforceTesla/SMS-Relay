@@ -1,0 +1,12 @@
+.env
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+data
+keys
+tests
+config.toml
+ddns.env
+cloudflare-origin
+Caddyfile
