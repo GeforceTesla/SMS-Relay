@@ -17,12 +17,13 @@ from .auth import verify_bearer_token
 from .config import Settings, get_settings
 from .crypto import DecryptionError, decrypt_envelope, sender_hash
 from .db import (
-    delete_messages_for_sender,
+    delete_messages_for_chain,
+    first_client_for_sender,
     get_message,
     init_db,
     insert_sms,
     inbox_state,
-    list_messages_for_sender,
+    list_messages_for_chain,
     list_sender_threads,
 )
 from .models import EncryptedEnvelope
@@ -52,6 +53,12 @@ def sender_token(sender: str) -> str:
     return encoded.rstrip("=")
 
 
+def chain_token(client_id: str, sender: str) -> str:
+    raw = json.dumps([client_id, sender], separators=(",", ":"))
+    encoded = base64.urlsafe_b64encode(raw.encode("utf-8")).decode("ascii")
+    return encoded.rstrip("=")
+
+
 def decode_sender_token(token: str) -> str:
     padding = "=" * (-len(token) % 4)
     try:
@@ -60,9 +67,22 @@ def decode_sender_token(token: str) -> str:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from exc
 
 
+def decode_chain_token(token: str) -> tuple[str, str]:
+    padding = "=" * (-len(token) % 4)
+    try:
+        raw = base64.urlsafe_b64decode((token + padding).encode("ascii")).decode("utf-8")
+        client_id, sender = json.loads(raw)
+        if not isinstance(client_id, str) or not isinstance(sender, str):
+            raise ValueError
+        return client_id, sender
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from exc
+
+
 templates.env.filters["server_time"] = format_server_time
 templates.env.filters["compact_message"] = compact_message
 templates.env.filters["sender_token"] = sender_token
+templates.env.filters["chain_token"] = lambda thread: chain_token(thread["client_id"], thread["sender"])
 
 
 def create_app(
@@ -108,9 +128,20 @@ def create_app(
             )
 
         @app.get("/senders/{token}", response_class=HTMLResponse)
-        def sender_detail(request: Request, token: str) -> HTMLResponse:
+        def sender_detail_legacy(token: str) -> RedirectResponse:
             sender = decode_sender_token(token)
-            messages = list_messages_for_sender(app_settings.db_path, sender)
+            client_id = first_client_for_sender(app_settings.db_path, sender)
+            if client_id is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+            return RedirectResponse(
+                url=f"/chains/{chain_token(client_id, sender)}",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+
+        @app.get("/chains/{token}", response_class=HTMLResponse)
+        def chain_detail(request: Request, token: str) -> HTMLResponse:
+            client_id, sender = decode_chain_token(token)
+            messages = list_messages_for_chain(app_settings.db_path, client_id, sender)
             if not messages:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
             threads = list_sender_threads(app_settings.db_path)
@@ -119,16 +150,25 @@ def create_app(
                 "sender.html",
                 {
                     "sender": sender,
+                    "client_id": client_id,
                     "token": token,
                     "messages": messages,
                     "threads": threads,
                 },
             )
 
+        @app.post("/chains/{token}/delete")
+        def delete_chain(token: str) -> RedirectResponse:
+            client_id, sender = decode_chain_token(token)
+            delete_messages_for_chain(app_settings.db_path, client_id, sender)
+            return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+
         @app.post("/senders/{token}/delete")
-        def delete_sender_chain(token: str) -> RedirectResponse:
+        def delete_sender_chain_legacy(token: str) -> RedirectResponse:
             sender = decode_sender_token(token)
-            delete_messages_for_sender(app_settings.db_path, sender)
+            client_id = first_client_for_sender(app_settings.db_path, sender)
+            if client_id is not None:
+                delete_messages_for_chain(app_settings.db_path, client_id, sender)
             return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
 
         @app.get("/messages/{message_id}", response_class=HTMLResponse)

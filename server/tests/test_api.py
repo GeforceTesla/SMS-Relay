@@ -125,11 +125,73 @@ def test_web_ui_groups_messages_by_sender_newest_first(client, auth_headers, enc
     assert "+15550000001" in page.text
     assert "newest from one" in page.text
     assert "older from one" not in page.text
+    assert "thread-divider" in page.text
+    assert "Receiver phone-1" in page.text
+    assert "data-receiver-toggle" in page.text
+    assert "data-receiver-row" in page.text
+    assert "receiver-collapse.js" in page.text
+    assert "data-epoch-ms" in page.text
+
+
+def test_same_sender_is_split_by_receiver(settings, auth_headers, encrypted_payload) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.config import Settings
+    from app.main import chain_token, create_app
+
+    multi_settings = Settings(
+        bearer_token=settings.bearer_token,
+        db_path=settings.db_path,
+        private_key_path=settings.private_key_path,
+        max_body_bytes=settings.max_body_bytes,
+        allowed_client_ids=frozenset({"Main", "Secondary"}),
+    )
+
+    with TestClient(create_app(multi_settings)) as multi_client:
+        sender = "+15550000009"
+        assert multi_client.post(
+            "/api/v1/sms",
+            json=encrypted_payload(client_id="Main", sender=sender, body="main phone"),
+            headers=auth_headers,
+        ).status_code == 200
+        assert multi_client.post(
+            "/api/v1/sms",
+            json=encrypted_payload(client_id="Secondary", sender=sender, body="secondary phone"),
+            headers=auth_headers,
+        ).status_code == 200
+
+        page = multi_client.get("/")
+        assert page.status_code == 200
+        assert "2 sender threads" in page.text
+        assert "Receiver Main" in page.text
+        assert "Receiver Secondary" in page.text
+        assert 'data-receiver="Main"' in page.text
+        assert 'data-receiver="Secondary"' in page.text
+        assert page.text.count(f"<strong>{sender}</strong>") == 2
+
+        main_token = chain_token("Main", sender)
+        secondary_token = chain_token("Secondary", sender)
+        assert f'href="/chains/{main_token}"' in page.text
+        assert f'href="/chains/{secondary_token}"' in page.text
+
+        main_history = multi_client.get(f"/chains/{main_token}")
+        assert main_history.status_code == 200
+        main_chat = main_history.text.split('class="chat-history-inner"', 1)[1]
+        assert "main phone" in main_chat
+        assert "secondary phone" not in main_chat
+        assert "Receiver Main" in main_history.text
+
+        secondary_history = multi_client.get(f"/chains/{secondary_token}")
+        assert secondary_history.status_code == 200
+        secondary_chat = secondary_history.text.split('class="chat-history-inner"', 1)[1]
+        assert "secondary phone" in secondary_chat
+        assert "main phone" not in secondary_chat
+        assert "Receiver Secondary" in secondary_history.text
 
 
 def test_sender_history_and_delete_chain(client, auth_headers, settings, encrypted_payload) -> None:
     from app.db import connect
-    from app.main import sender_token
+    from app.main import chain_token, sender_token
 
     sender = "+15550000003"
     other_sender = "+15550000004"
@@ -149,18 +211,23 @@ def test_sender_history_and_delete_chain(client, auth_headers, settings, encrypt
         headers=auth_headers,
     ).status_code == 200
 
-    token = sender_token(sender)
-    history = client.get(f"/senders/{token}")
+    token = chain_token("phone-1", sender)
+    history = client.get(f"/chains/{token}")
     assert history.status_code == 200
-    assert history.text.index("new history") < history.text.index("old history")
+    chat = history.text.split('class="chat-history-inner"', 1)[1]
+    assert chat.index("old history") < chat.index("new history")
+    assert "chat-history-inner" in history.text
+    assert "chat-bottom-panel" in history.text
+    assert "data-scroll-bottom" in history.text
+    assert "data-epoch-ms" in history.text
     assert "2 sender threads" in history.text
     assert other_sender in history.text
     assert "keep me" in history.text
-    assert f'data-delete-url="/senders/{token}/delete"' in history.text
+    assert f'data-delete-url="/chains/{token}/delete"' in history.text
     assert "Delete chain</button>" in history.text
-    assert f'action="/senders/{token}/delete"' not in history.text
+    assert f'action="/chains/{token}/delete"' not in history.text
 
-    deleted = client.post(f"/senders/{token}/delete", follow_redirects=False)
+    deleted = client.post(f"/chains/{token}/delete", follow_redirects=False)
     assert deleted.status_code == 303
 
     with connect(settings.db_path) as conn:

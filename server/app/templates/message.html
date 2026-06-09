@@ -23,12 +23,13 @@
         <dt>Received at phone</dt>
         <dd>{{ message.received_at_phone }}</dd>
         <dt>Received at server time</dt>
-        <dd>{{ message.received_at_server|server_time }}</dd>
+        <dd><time data-epoch-ms="{{ message.received_at_server }}">{{ message.received_at_server|server_time }}</time></dd>
         <dt>SIM slot</dt>
         <dd>{{ message.sim_slot if message.sim_slot is not none else "Unknown" }}</dd>
       </dl>
 
       <article class="message-body">{{ message.body }}</article>
     </main>
+    <script src="/static/timestamps.js" defer></script>
   </body>
 </html>

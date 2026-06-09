@@ -67,6 +67,55 @@ a:hover {
   padding: 8px;
 }
 
+.thread-divider {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: 8px 0 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.thread-divider:hover,
+.thread-divider:focus-visible {
+  background: #edf7f5;
+  color: inherit;
+  outline: none;
+}
+
+.thread-divider.collapsed {
+  color: #64748b;
+}
+
+.thread-divider-icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: #0f766e;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.thread-row[hidden] {
+  display: none;
+}
+
 .thread-row {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);
@@ -146,6 +195,7 @@ a:hover {
 .conversation-pane {
   display: flex;
   min-width: 0;
+  min-height: 0;
   flex-direction: column;
   background: #f8fafc;
 }
@@ -227,12 +277,26 @@ button.danger {
 }
 
 .chat-history {
-  display: flex;
   overflow-y: auto;
   flex: 1 1 auto;
-  flex-direction: column;
-  gap: 12px;
+  min-height: 0;
   padding: 22px;
+}
+
+.chat-history-inner {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+
+.chat-bottom-panel {
+  flex: 0 0 92px;
+  border-top: 1px solid #dbe2ec;
+  background: #ffffff;
+  pointer-events: none;
 }
 
 .message-bubble {
@@ -321,21 +385,47 @@ button.danger {
 @media (max-width: 760px) {
   .app-shell {
     display: block;
-    height: auto;
-    min-height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .thread-pane {
-    min-height: 100vh;
+    height: 100dvh;
+    min-height: 0;
     border-right: 0;
+  }
+
+  .thread-list {
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   .conversation-pane {
     min-height: 100vh;
   }
 
+  .empty-conversation {
+    display: none;
+  }
+
+  body:has(.conversation-pane:not(.empty-conversation)) {
+    overflow: hidden;
+  }
+
+  body:has(.conversation-pane:not(.empty-conversation)) .app-shell {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   body:has(.conversation-pane:not(.empty-conversation)) .thread-pane {
     display: none;
+  }
+
+  body:has(.conversation-pane:not(.empty-conversation)) .conversation-pane {
+    height: 100dvh;
+    min-height: 0;
   }
 
   .back-link {
@@ -344,12 +434,19 @@ button.danger {
 
   .conversation-header {
     align-items: flex-start;
+    flex: 0 0 auto;
     flex-wrap: wrap;
     padding: 14px 16px;
   }
 
   .chat-history {
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 16px;
+  }
+
+  .chat-bottom-panel {
+    flex-basis: 28px;
   }
 
   .message-bubble {
@@ -371,6 +468,7 @@ button.danger {
   .conversation-header,
   .message-bubble,
   .message-body,
+  .chat-bottom-panel,
   .context-menu {
     background: #172033;
     border-color: #334155;
@@ -385,6 +483,21 @@ button.danger {
     color: #cbd5e1;
   }
 
+  .thread-divider:hover,
+  .thread-divider:focus-visible {
+    background: #123b3a;
+    color: inherit;
+  }
+
+  .thread-divider.collapsed {
+    color: #94a3b8;
+  }
+
+  .thread-divider-icon {
+    background: #0f766e;
+    color: #ffffff;
+  }
+
   .context-menu button:hover,
   .context-menu button:focus-visible {
     background: #451a1a;
@@ -395,6 +508,7 @@ button.danger {
   .empty-state p,
   .thread-top time,
   .thread-meta,
+  .thread-divider,
   .message-bubble footer,
   .detail dt,
   .empty {

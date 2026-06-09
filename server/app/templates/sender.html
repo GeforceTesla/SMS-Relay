@@ -15,14 +15,22 @@
         </header>
 
         <nav class="thread-list">
+          {% set receiver = namespace(current=None) %}
           {% for thread in threads %}
-            {% set row_token = thread.sender|sender_token %}
-            <a class="thread-row{% if row_token == token %} active{% endif %}" href="/senders/{{ row_token }}" data-delete-url="/senders/{{ row_token }}/delete" data-sender="{{ thread.sender }}">
+            {% if receiver.current != thread.client_id %}
+              {% set receiver.current = thread.client_id %}
+              <button class="thread-divider" type="button" data-receiver-toggle data-receiver="{{ thread.client_id }}" aria-expanded="true">
+                <span class="thread-divider-icon" aria-hidden="true">-</span>
+                <span>Receiver {{ thread.client_id }}</span>
+              </button>
+            {% endif %}
+            {% set row_token = thread|chain_token %}
+            <a class="thread-row{% if row_token == token %} active{% endif %}" href="/chains/{{ row_token }}" data-receiver-row="{{ thread.client_id }}" data-delete-url="/chains/{{ row_token }}/delete" data-sender="{{ thread.sender }}">
               <span class="avatar">{{ thread.sender[-2:] }}</span>
               <span class="thread-main">
                 <span class="thread-top">
                   <strong>{{ thread.sender }}</strong>
-                  <time>{{ thread.received_at_server|server_time }}</time>
+                  <time data-epoch-ms="{{ thread.received_at_server }}" data-time-format="compact">{{ thread.received_at_server|server_time }}</time>
                 </span>
                 <span class="thread-preview">{{ thread.body|compact_message }}</span>
                 <span class="thread-meta">Receiver {{ thread.client_id }} · {{ thread.message_count }} messages</span>
@@ -39,28 +47,32 @@
             <span class="avatar large">{{ sender[-2:] }}</span>
             <div>
               <h2>{{ sender }}</h2>
-              <p>{{ messages|length }} messages · newest first</p>
+              <p>Receiver {{ client_id }} · {{ messages|length }} messages</p>
             </div>
           </div>
         </header>
 
-        <section class="chat-history">
-          {% for message in messages %}
-            <article class="message-bubble">
-              <p>{{ message.body }}</p>
-              <footer>
-                <time>{{ message.received_at_server|server_time }}</time>
-                <span>Receiver {{ message.client_id }}</span>
-                <a href="/messages/{{ message.id }}">Details</a>
-              </footer>
-            </article>
-          {% endfor %}
+        <section class="chat-history" data-scroll-bottom>
+          <div class="chat-history-inner">
+            {% for message in messages %}
+              <article class="message-bubble">
+                <p>{{ message.body }}</p>
+                <footer>
+                  <time data-epoch-ms="{{ message.received_at_server }}">{{ message.received_at_server|server_time }}</time>
+                  <a href="/messages/{{ message.id }}">Details</a>
+                </footer>
+              </article>
+            {% endfor %}
+          </div>
         </section>
+        <div class="chat-bottom-panel" aria-hidden="true"></div>
       </section>
     </main>
     <div class="context-menu" id="thread-context-menu" role="menu" hidden>
       <button class="context-menu-delete" type="button" role="menuitem">Delete chain</button>
     </div>
+    <script src="/static/timestamps.js" defer></script>
+    <script src="/static/receiver-collapse.js" defer></script>
     <script src="/static/thread-actions.js" defer></script>
     <script src="/static/auto-refresh.js" defer></script>
   </body>

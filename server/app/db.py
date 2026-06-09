@@ -130,25 +130,18 @@ def list_sender_threads(db_path: Path, limit: int = 100) -> list[sqlite3.Row]:
                          SELECT COUNT(*)
                          FROM sms_messages c
                          WHERE c.sender = m.sender
-                       ) AS message_count,
-                       (
-                         SELECT GROUP_CONCAT(client_id, ', ')
-                         FROM (
-                           SELECT DISTINCT c.client_id
-                           FROM sms_messages c
-                           WHERE c.sender = m.sender
-                           ORDER BY c.client_id
-                         )
-                       ) AS receiver_client_ids
+                           AND c.client_id = m.client_id
+                       ) AS message_count
                 FROM sms_messages m
                 WHERE m.id = (
                     SELECT latest.id
                     FROM sms_messages latest
                     WHERE latest.sender = m.sender
+                      AND latest.client_id = m.client_id
                     ORDER BY latest.received_at_server DESC, latest.id DESC
                     LIMIT 1
                 )
-                ORDER BY m.received_at_server DESC, m.id DESC
+                ORDER BY m.client_id COLLATE NOCASE ASC, m.received_at_server DESC, m.id DESC
                 LIMIT ?
                 """,
                 (limit,),
@@ -156,7 +149,9 @@ def list_sender_threads(db_path: Path, limit: int = 100) -> list[sqlite3.Row]:
         )
 
 
-def list_messages_for_sender(db_path: Path, sender: str, limit: int = 500) -> list[sqlite3.Row]:
+def list_messages_for_chain(
+    db_path: Path, client_id: str, sender: str, limit: int = 500
+) -> list[sqlite3.Row]:
     with connect(db_path) as conn:
         return list(
             conn.execute(
@@ -164,18 +159,36 @@ def list_messages_for_sender(db_path: Path, sender: str, limit: int = 500) -> li
                 SELECT id, client_id, client_message_id, sender, body,
                        received_at_phone, received_at_server, sim_slot
                 FROM sms_messages
-                WHERE sender = ?
-                ORDER BY received_at_server DESC, id DESC
+                WHERE client_id = ? AND sender = ?
+                ORDER BY received_at_server ASC, id ASC
                 LIMIT ?
                 """,
-                (sender, limit),
+                (client_id, sender, limit),
             )
         )
 
 
-def delete_messages_for_sender(db_path: Path, sender: str) -> int:
+def first_client_for_sender(db_path: Path, sender: str) -> str | None:
     with connect(db_path) as conn:
-        cursor = conn.execute("DELETE FROM sms_messages WHERE sender = ?", (sender,))
+        row = conn.execute(
+            """
+            SELECT client_id
+            FROM sms_messages
+            WHERE sender = ?
+            ORDER BY received_at_server DESC, id DESC
+            LIMIT 1
+            """,
+            (sender,),
+        ).fetchone()
+    return None if row is None else str(row["client_id"])
+
+
+def delete_messages_for_chain(db_path: Path, client_id: str, sender: str) -> int:
+    with connect(db_path) as conn:
+        cursor = conn.execute(
+            "DELETE FROM sms_messages WHERE client_id = ? AND sender = ?",
+            (client_id, sender),
+        )
         return int(cursor.rowcount)
 
 
